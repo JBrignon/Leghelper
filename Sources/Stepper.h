@@ -14,7 +14,7 @@
 class Stepper
 {
 	public:
-	struct GPIO
+	struct GPIO_L293D
 	{
 		int input1_bobine_1;
 		int input2_bobine_1;
@@ -30,23 +30,23 @@ class Stepper
 			{
 				pin = matrice[i][0];
 				value = matrice[i][j];
-				pinMode(100 + pin, OUTPUT);
+				pinMode(pin, OUTPUT);
 				if (value == 1)
 				{
-					digitalWrite(100 + pin,HIGH);
+					digitalWrite(pin,HIGH);
 				}
 				else
 				{
-					digitalWrite(100 + pin,LOW);
+					digitalWrite(pin,LOW);
 				}
 			}
 			delay(temps);
 		}
 		return;
 	}
-	int run(double vitesse, int valeur, GPIO in)
+	int run(double vitesse, int valeur, GPIO_L293D in)
 	{
-		GPIO pin;
+		GPIO_L293D pin;
 		int tours, i;
 		if (valeur < 0)
 		{
@@ -91,6 +91,49 @@ class Stepper
 		}
 		//Arrêt du moteur
 		Engine(STOP,vitesse);
+		return 1;
+	}
+};
+class Driver
+{
+	public :
+	struct GPIO_SS2000MD4
+	{
+		int PULSE;
+		int DIR;
+		int AWO;
+	};
+	int run(double vitesse, int valeur, GPIO_SS2000MD4 pin)
+	{
+		int tours, i;
+		//Envoie du signal enable au driver
+		digitalWrite(pin.AWO,HIGH);
+		//Gestion du sens de rotation
+		if (valeur < 0)
+		{
+			digitalWrite(pin.DIR,LOW);
+			tours = -1*valeur;
+		}
+		if (valeur > 0)
+		{
+			digitalWrite(pin.DIR,HIGH);
+			tours = valeur;
+		}
+		if (valeur = 0)
+		{
+			return 1;
+		}
+		//Lancement de la boucle
+		for (i=0; i<tours; i++)
+		{
+			digitalWrite(pin.PULSE,HIGH);
+			delay(vitesse/2);
+			digitalWrite(pin.PULSE,LOW);
+			delay(vitesse/2);
+		}
+		//Remise à zero des pins
+		digitalWrite(pin.AWO,LOW);
+		digitalWrite(pin.DIR,LOW);
 		return 1;
 	}
 };

@@ -23,14 +23,14 @@ int main()
 	//Suite du programme
 	int i,j,h,k;
 	//Inscription de la matrice dans le tas
-	std::array <std::array<std::array <int, p>, n>, m> pMatrix =  {{{{{{2,0,0,0,0,0,0,1}},
-									  {{0,0,0,0,0,1,0,0}},
-									  {{0,0,1,0,0,0,0,0}},
-									  {{0,0,0,0,0,0,0,0}}}}
+	std::array <std::array<std::array <int, p>, n>, m> pMatrix =  {{{{{{2,0,0,0,0,0,0,0}},
+									  {{0,0,0,0,0,0,0,0}},
+									  {{0,0,0,0,0,0,0,0}},
+									  {{0,0,0,0,0,0,0,1}}}}
 								       ,{{{{0,0,0,0,0,0,0,0}},
-									  {{0,0,1,0,0,0,0,0}},
-									  {{0,0,0,0,1,0,0,0}},
-									  {{0,0,0,0,0,1,0,0}}}}}};
+									  {{0,0,0,0,0,0,0,0}},
+									  {{0,0,0,0,0,0,0,0}},
+									  {{0,0,0,0,0,0,0,0}}}}}};
 	//Declaration des classes
 	Brain commande;
 	//Execution de toute les positions succesives

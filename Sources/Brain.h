@@ -10,18 +10,20 @@
 #include <fstream>
 #include <vector>
 //Declaration de k, conversion distance/pas
-#define kx 50 //selon x
-#define ky 35 //selon y
+#define kx 100 //selon x
+#define ky 100//selon y
 #define kz 35 //selon z
 //Declaration des constantes de taille de la matrice [z][y][x]
 #define m 2 //selon z
 #define n 4 //selon y
 #define p 8 //selon x
 //Declaration de la constante de frequence
-#define speed 1
+#define speed 10
 //Declaration des parametre du mcp23017
 #define pinBase 100      //Definition des numeros de pin affecter au mcp23017
 #define i2cAddress 0x20  //Definition de l'adresse du mcp23017
+//Definition du mode (1 = Driver, 0 = Stepper)
+#define mode 1
 class Brain
 {
 	public:
@@ -40,10 +42,46 @@ class Brain
 		bool z;
 	};
 	//Definition de la fonction pour les threads
-	void motorThread(int pas, Stepper::GPIO pin, int ID,state *etatThread)
+	void motorThread(int pas, Stepper::GPIO_L293D pin, int ID,state *etatThread)
 	{
 		//Lancement du moteur
 		Stepper motor;
+		//Affichage por le log
+		switch (ID)
+		{
+			case 0x200 :
+				std::cout << "Moteur x avance de : " << pas << " pas" << '\n';
+				break;
+			case 0x276 : 
+				std::cout << "Moteur y avance de : " << pas << " pas" << '\n';
+				break;
+			case 0x398 :
+				std::cout << "Moteur z avance de : " << pas << " pas" << '\n';
+				break;
+		}
+		//Attente du moteur
+		while (motor.run(speed,pas,pin) != 1)
+		{
+			continue;
+		}
+		//Envoi du signal d'arret du thread
+		switch (ID)
+		{
+			case 0x200 :
+				etatThread->x = true;
+				break;
+			case 0x276 : 
+				etatThread->y = true;
+				break;
+			case 0x398 :
+				etatThread->z = true;
+				break;
+		}
+	}
+	void driverThread(int pas, Driver::GPIO_SS2000MD4 pin, int ID,state *etatThread)
+	{
+		//Lancement du moteur
+		Driver motor;
 		//Affichage por le log
 		switch (ID)
 		{
@@ -140,24 +178,6 @@ class Brain
 	}
 	std::array <std::array<std::array <int, p>, n>, m> goNextPosition(std::array <std::array<std::array <int, p>, n>, m> pMatrix)
 	{
-		//Initialisation des pins axeX
-		Stepper::GPIO pin_axe_X;
-		pin_axe_X.input1_bobine_1 =  8;
-		pin_axe_X.input2_bobine_1 =  9;
-		pin_axe_X.input3_bobine_2 =  6;
-		pin_axe_X.input4_bobine_2 =  7;
-		//Initialisation des pins axeY
-		Stepper::GPIO pin_axe_Y;
-		pin_axe_Y.input1_bobine_1 =  10;
-		pin_axe_Y.input2_bobine_1 =  11;
-		pin_axe_Y.input3_bobine_2 =   4;
-		pin_axe_Y.input4_bobine_2 =   5;
-		//Initialisation des pins axeZ
-		Stepper::GPIO pin_axe_Z;
-		pin_axe_Z.input1_bobine_1 =  43;
-		pin_axe_Z.input2_bobine_1 =  44;
-		pin_axe_Z.input3_bobine_2 =  45;
-		pin_axe_Z.input4_bobine_2 =  46;
 		//Declaration de la variable de test des threads
 		state *etatThread = new state;
 		*etatThread = {false,false,false};
@@ -165,14 +185,63 @@ class Brain
 		position *grid = new position;
 		//Calcul des vecteurs
 		pMatrix = getGrid(pMatrix,grid);
-		//Demarrage des threads
-		std::thread xEngine(&Brain::motorThread,this,grid->x,pin_axe_X,0x200,etatThread);
-		std::thread yEngine(&Brain::motorThread,this,grid->y,pin_axe_Y,0x276,etatThread);
-		std::thread zEngine(&Brain::motorThread,this,grid->z,pin_axe_Z,0x398,etatThread);
+		//Gestion des deux mode de fonctionnements
+		if (mode == 0)
+		{
+			//Initialisation des pins axeX
+			Stepper::GPIO_L293D pin_axe_X;
+			pin_axe_X.input1_bobine_1 = 108;
+			pin_axe_X.input2_bobine_1 = 109;
+			pin_axe_X.input3_bobine_2 = 106;
+			pin_axe_X.input4_bobine_2 = 107;
+			//Initialisation des pins axeY
+			Stepper::GPIO_L293D pin_axe_Y;
+			pin_axe_Y.input1_bobine_1 = 110;
+			pin_axe_Y.input2_bobine_1 = 111;
+			pin_axe_Y.input3_bobine_2 = 104;
+			pin_axe_Y.input4_bobine_2 = 105;
+			//Initialisation des pins axeZ
+			Stepper::GPIO_L293D pin_axe_Z;
+			pin_axe_Z.input1_bobine_1 = 170;
+			pin_axe_Z.input2_bobine_1 = 171;
+			pin_axe_Z.input3_bobine_2 = 172;
+			pin_axe_Z.input4_bobine_2 = 173;
+			//Demarrage des threads
+			std::thread xEngine(&Brain::motorThread,this,grid->x,pin_axe_X,0x200,etatThread);
+			std::thread yEngine(&Brain::motorThread,this,grid->y,pin_axe_Y,0x276,etatThread);
+			std::thread zEngine(&Brain::motorThread,this,grid->z,pin_axe_Z,0x398,etatThread);
+			//Separation des threads du main
+			xEngine.detach();
+			yEngine.detach();
+			zEngine.detach();
+		}
+		else
+		{
+			//Initialisation des pins axeX
+			Driver::GPIO_SS2000MD4 pin_axe_X;
+			pin_axe_X.PULSE =  108;
+			pin_axe_X.DIR   =  107;
+			pin_axe_X.AWO   =  106;
+			//Initialisation des pins axeY
+			Driver::GPIO_SS2000MD4 pin_axe_Y;
+			pin_axe_Y.PULSE =  109;
+			pin_axe_Y.DIR   =  110;
+			pin_axe_Y.AWO   =  111;
+			//Initialisation des pins axeZ
+			Driver::GPIO_SS2000MD4 pin_axe_Z;
+			pin_axe_Z.PULSE =  156;
+			pin_axe_Z.DIR   =  157;
+			pin_axe_Z.AWO   =  158;
+			//Demarrage des threads
+			std::thread xEngine(&Brain::driverThread,this,grid->x,pin_axe_X,0x200,etatThread);
+			std::thread yEngine(&Brain::driverThread,this,grid->y,pin_axe_Y,0x276,etatThread);
+			std::thread zEngine(&Brain::driverThread,this,grid->z,pin_axe_Z,0x398,etatThread);
+			//Separation des threads du main
+			xEngine.detach();
+			yEngine.detach();
+			zEngine.detach();
+		}
 		//Attente des trois threads
-		xEngine.detach();
-		yEngine.detach();
-		zEngine.detach();
 		while (etatThread->x == false or etatThread->y == false or etatThread->z == false)
 		{
 			continue;
